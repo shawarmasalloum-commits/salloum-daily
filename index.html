@@ -152,12 +152,9 @@ textarea.inp{resize:vertical;min-height:75px;line-height:1.7}
 .empty-s{font-size:12px;line-height:1.8}
 /* PRINT */
 @media print{
-  .lock-ov,.nav,.save-bar,.hdr,.toast,.mov{display:none!important}
+  .lock-ov,.nav,.save-bar,.hdr,.toast,.mov,#pg-sales,#pg-expenses,#pg-invoices,#pg-summary,#pg-records,.content,.no-print{display:none!important}
   body{background:#fff;padding:0}
-  .pg{display:block!important}
-  .card-body{display:block!important}
-  .addbtn,.delbtn,.fdel,.upzone{display:none!important}
-  .print-header{display:block!important}
+  #print-ov{position:static!important;padding:0!important}
 }
 .print-header{display:none;text-align:center;padding:16px 0;border-bottom:2px solid #000;margin-bottom:16px}
 .print-header h1{font-size:20px;font-weight:900}
@@ -371,6 +368,15 @@ textarea.inp{resize:vertical;min-height:75px;line-height:1.7}
 </div>
 
 </div><!-- /content -->
+
+<!-- PRINT OVERLAY -->
+<div id="print-ov" style="display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto;padding:16px" dir="rtl">
+  <div id="print-content"></div>
+  <div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center" class="no-print">
+    <button onclick="doPrint()" style="padding:12px 28px;background:#111;color:#fff;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:14px;font-weight:800;cursor:pointer">🖨️ طباعة</button>
+    <button onclick="closePrint()" style="padding:12px 28px;background:#eee;color:#333;border:none;border-radius:10px;font-family:Cairo,sans-serif;font-size:14px;font-weight:800;cursor:pointer">✕ إغلاق</button>
+  </div>
+</div>
 
 <div class="save-bar"><button class="save-btn" onclick="saveRec()">💾 حفظ الكشف</button></div>
 
@@ -715,56 +721,51 @@ function printPage(){
   window.print();
 }
 function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function closePrint(){ document.getElementById('print-ov').style.display='none'; }
+function doPrint(){ window.print(); }
 function printRec(id){
   var r=records.find(function(x){return String(x.id)===String(id);});
   if(!r){showToast('❌ لم يُعثر على الكشف');return;}
   var net=r.net_profit||0;
   var isPos=net>=0;
-  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">'
-  +'<title>كشف يومي</title>'
-  +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">'
+  var nc=isPos?'#2E7D32':'#C62828', nb=isPos?'#F1FBF2':'#FFF5F5';
+  var html=''
   +'<style>'
-  +'@page{size:A4;margin:15mm}'
-  +'*{box-sizing:border-box;margin:0;padding:0}'
-  +'body{font-family:Cairo,sans-serif;direction:rtl;color:#111;font-size:13px;background:#fff}'
-  +'.page{max-width:180mm;margin:0 auto}'
-  +'.header{text-align:center;border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:16px}'
-  +'.header h1{font-size:22px;font-weight:900}'
-  +'.header .sub{font-size:11px;color:#666;margin-top:3px}'
-  +'.header .date{font-size:13px;font-weight:700;margin-top:6px}'
-  +'.sec{margin-bottom:14px}'
-  +'.sec-title{font-size:10px;font-weight:900;color:#fff;background:#333;padding:4px 10px;border-radius:4px;margin-bottom:6px;letter-spacing:1px}'
-  +'.row{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid #f0f0f0;font-size:12px}'
-  +'.row:nth-child(even){background:#fafafa}'
-  +'.row.bold{font-weight:800;background:#f5f5f5;border-top:1px solid #ddd}'
-  +'.net-box{margin-top:16px;border:2px solid '+(isPos?'#2E7D32':'#C62828')+';border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:'+(isPos?'#F1FBF2':'#FFF5F5')+'}'
-  +'.net-label{font-size:15px;font-weight:900;color:'+(isPos?'#2E7D32':'#C62828')+'}'
-  +'.net-value{font-size:22px;font-weight:900;color:'+(isPos?'#2E7D32':'#C62828')+'}'
-  +'.footer{margin-top:20px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px}'
-  +'@media print{.no-print{display:none}}'
-  +'</style></head><body>'
-  +'<div class="page">'
-  +'<div class="header"><h1>شاورما سلوم</h1><div class="sub">كشف الحسابات اليومي</div><div class="date">'+(r.date_label||r.report_date)+'</div></div>'
-  +'<div class="sec"><div class="sec-title">المبيعات</div>'
-  +'<div class="row"><span>كاش</span><span>'+fmt2(r.cash_sales)+' ﷼</span></div>'
-  +'<div class="row"><span>شبكة / مدى</span><span>'+fmt2(r.card_sales)+' ﷼</span></div>'
-  +'<div class="row"><span>توصيل التطبيقات</span><span>'+fmt2(r.app_sales)+' ﷼</span></div>'
-  +'<div class="row bold"><span>إجمالي المبيعات</span><span>'+fmt2(r.total_sales)+' ﷼</span></div>'
+  +'.prec *{box-sizing:border-box;margin:0;padding:0;font-family:Cairo,sans-serif}'
+  +'.prec{max-width:600px;margin:0 auto;direction:rtl;color:#111;font-size:13px}'
+  +'.prec .ph{text-align:center;border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:16px}'
+  +'.prec .ph h1{font-size:22px;font-weight:900}'
+  +'.prec .ph p{font-size:11px;color:#666;margin-top:3px}'
+  +'.prec .ph .dt{font-size:13px;font-weight:700;margin-top:6px}'
+  +'.prec .psec{margin-bottom:14px}'
+  +'.prec .pst{font-size:10px;font-weight:900;color:#fff;background:#333;padding:4px 10px;border-radius:4px;margin-bottom:6px;letter-spacing:1px;display:block}'
+  +'.prec .pr{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #f0f0f0;font-size:13px}'
+  +'.prec .pr.bold{font-weight:800;background:#f5f5f5;border-top:1px solid #ddd}'
+  +'.prec .pnet{margin-top:16px;border:2px solid '+nc+';border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:'+nb+'}'
+  +'.prec .pnl{font-size:15px;font-weight:900;color:'+nc+'}'
+  +'.prec .pnv{font-size:24px;font-weight:900;color:'+nc+'}'
+  +'.prec .pft{margin-top:16px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px}'
+  +'</style>'
+  +'<div class="prec">'
+  +'<div class="ph"><h1>شاورما سلوم</h1><p>كشف الحسابات اليومي</p><div class="dt">'+(r.date_label||r.report_date)+'</div></div>'
+  +'<div class="psec"><span class="pst">المبيعات</span>'
+  +'<div class="pr"><span>كاش</span><span>'+fmt2(r.cash_sales)+' ﷼</span></div>'
+  +'<div class="pr"><span>شبكة / مدى</span><span>'+fmt2(r.card_sales)+' ﷼</span></div>'
+  +'<div class="pr"><span>توصيل التطبيقات</span><span>'+fmt2(r.app_sales)+' ﷼</span></div>'
+  +'<div class="pr bold"><span>إجمالي المبيعات</span><span>'+fmt2(r.total_sales)+' ﷼</span></div>'
   +'</div>'
-  +'<div class="sec"><div class="sec-title">المصاريف</div>'
-  +'<div class="row"><span>مصاريف ثابتة</span><span>'+fmt2(r.fixed_exp)+' ﷼</span></div>'
-  +'<div class="row"><span>مصاريف متغيرة</span><span>'+fmt2(r.variable_exp)+' ﷼</span></div>'
-  +'<div class="row"><span>سلف موظفين</span><span>'+fmt2(r.advances)+' ﷼</span></div>'
-  +'<div class="row bold"><span>إجمالي المصاريف</span><span>'+fmt2(r.total_exp)+' ﷼</span></div>'
+  +'<div class="psec"><span class="pst">المصاريف</span>'
+  +'<div class="pr"><span>مصاريف ثابتة</span><span>'+fmt2(r.fixed_exp)+' ﷼</span></div>'
+  +'<div class="pr"><span>مصاريف متغيرة</span><span>'+fmt2(r.variable_exp)+' ﷼</span></div>'
+  +'<div class="pr"><span>سلف موظفين</span><span>'+fmt2(r.advances)+' ﷼</span></div>'
+  +'<div class="pr bold"><span>إجمالي المصاريف</span><span>'+fmt2(r.total_exp)+' ﷼</span></div>'
   +'</div>'
-  +'<div class="net-box"><span class="net-label">صافي الربح</span><span class="net-value">'+fmt2(net)+' ﷼</span></div>'
-  +'<div class="footer">شاورما سلوم — كشف الحسابات اليومي — '+( r.date_label||r.report_date)+'</div>'
-  +'</div></body></html>';
-  var w=window.open('','_blank','width=800,height=900');
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.onload=function(){ w.focus(); w.print(); };
+  +'<div class="pnet"><span class="pnl">صافي الربح</span><span class="pnv">'+fmt2(net)+' ﷼</span></div>'
+  +'<div class="pft">شاورما سلوم — '+( r.date_label||r.report_date)+'</div>'
+  +'</div>';
+  document.getElementById('print-content').innerHTML=html;
+  document.getElementById('print-ov').style.display='block';
+  window.scrollTo(0,0);
 }
 
 function exportRec(id){
@@ -818,6 +819,8 @@ function printPage(){
   window.print();
 }
 function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function closePrint(){ document.getElementById('print-ov').style.display='none'; }
+function doPrint(){ window.print(); }
 function printRec(id){
   var r=records.find(function(x){return String(x.id)===String(id);});
   if(!r){showToast('❌ لم يُعثر على الكشف');return;}
