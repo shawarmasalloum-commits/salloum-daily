@@ -685,10 +685,14 @@ body { padding-bottom: 140px; }
   </button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+var SUPA_URL = 'https://mkkudnouqxigxozjwick.supabase.co';
+var SUPA_KEY = 'sb_publishable_1uvzYe1jdGb4dchmDoQGvQ_KxXmmhmD';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
 var LOGO = document.getElementById('brand-logo').src;
 var uploads = [], records = [], rid = 0, logoSrc = LOGO;
-try { records = JSON.parse(localStorage.getItem('ss2_recs') || '[]'); } catch(e) {}
 try { var _s = localStorage.getItem('ss2_logo'); if(_s) logoSrc = _s; } catch(e) {}
 
 // NAV
@@ -701,6 +705,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
   btn.classList.add('on');
   document.getElementById('pg-' + pg).classList.add('on');
   if (pg === 'summary') updSum();
+  if (pg === 'records') loadRecs();
   window.scrollTo(0, 0);
 });
 
@@ -909,15 +914,53 @@ function saveRec() {
   var apps = 0; document.querySelectorAll('.app-a').forEach(function(e){apps+=parseFloat(e.value)||0;});
   var sales = (gn('dc')+gn('dk')) + apps;
   var exp = 0; document.querySelectorAll('.exp-a,.adv-a').forEach(function(e){exp+=parseFloat(e.value)||0;});
+  var dtxt = document.getElementById('date-txt').textContent;
   var rec = {
-    id: Date.now(), date: dv,
-    dtxt: document.getElementById('date-txt').textContent,
-    sales: sales, exp: exp, profit: sales-exp,
-    files: uploads.filter(function(f){return f;}).length
+    report_date: dv,
+    date_label: dtxt,
+    cash_sales: gn('dc'),
+    card_sales: gn('dk'),
+    app_sales: apps,
+    total_sales: sales,
+    fixed_exp: 0,
+    variable_exp: 0,
+    advances: 0,
+    total_exp: exp,
+    net_profit: sales - exp,
+    files_count: uploads.filter(function(f){return f;}).length
   };
-  records.unshift(rec); if(records.length > 60) records = records.slice(0,60);
-  try { localStorage.setItem('ss2_recs', JSON.stringify(records)); } catch(e) {}
-  renderRecs(); showToast('✅ تم حفظ الكشف');
+  // calc breakdown
+  document.querySelectorAll('.exp-a[data-t=fx]').forEach(function(e){rec.fixed_exp+=parseFloat(e.value)||0;});
+  document.querySelectorAll('.exp-a[data-t=vr]').forEach(function(e){rec.variable_exp+=parseFloat(e.value)||0;});
+  document.querySelectorAll('.adv-a').forEach(function(e){rec.advances+=parseFloat(e.value)||0;});
+
+  showToast('⏳ جاري الحفظ...');
+  db.from('daily_reports').insert([rec]).then(function(res) {
+    if (res.error) {
+      console.error(res.error);
+      showToast('❌ خطأ في الحفظ: ' + res.error.message);
+    } else {
+      showToast('✅ تم الحفظ في قاعدة البيانات');
+      loadRecs();
+    }
+  });
+}
+
+function loadRecs() {
+  var el = document.getElementById('rec-list');
+  el.innerHTML = '<div class="empty"><div class="empty-i">⏳</div><div class="empty-t">جاري التحميل...</div></div>';
+  db.from('daily_reports')
+    .select('*')
+    .order('report_date', {ascending: false})
+    .limit(60)
+    .then(function(res) {
+      if (res.error) {
+        el.innerHTML = '<div class="empty"><div class="empty-i">❌</div><div class="empty-t">تعذر التحميل</div><div class="empty-s">'+res.error.message+'</div></div>';
+        return;
+      }
+      records = res.data || [];
+      renderRecs();
+    });
 }
 
 function renderRecs() {
@@ -927,13 +970,14 @@ function renderRecs() {
     return;
   }
   el.innerHTML = records.map(function(r) {
+    var profit = r.net_profit || 0;
     return '<div class="reccard">'
-      + '<div class="rec-top"><div class="rec-dt">'+r.dtxt+'</div>'
-      + '<span class="rtag '+(r.profit>=0?'g':'r')+'">'+(r.profit>=0?'↑ ':'↓ ')+Math.abs(Math.round(r.profit)).toLocaleString('ar-SA')+' ﷼</span></div>'
+      + '<div class="rec-top"><div class="rec-dt">'+(r.date_label||r.report_date)+'</div>'
+      + '<span class="rtag '+(profit>=0?'g':'r')+'">'+(profit>=0?'↑ ':'↓ ')+Math.abs(Math.round(profit)).toLocaleString('ar-SA')+' ﷼</span></div>'
       + '<div class="rec-grid">'
-      + '<div class="rmini"><div class="rl">مبيعات</div><div class="rv" style="color:var(--green)">'+Math.round(r.sales).toLocaleString('ar-SA')+'</div></div>'
-      + '<div class="rmini"><div class="rl">مصاريف</div><div class="rv" style="color:var(--red)">'+Math.round(r.exp).toLocaleString('ar-SA')+'</div></div>'
-      + '<div class="rmini"><div class="rl">فواتير</div><div class="rv">'+(r.files||0)+' 📎</div></div>'
+      + '<div class="rmini"><div class="rl">مبيعات</div><div class="rv" style="color:var(--green)">'+Math.round(r.total_sales||0).toLocaleString('ar-SA')+'</div></div>'
+      + '<div class="rmini"><div class="rl">مصاريف</div><div class="rv" style="color:var(--red)">'+Math.round(r.total_exp||0).toLocaleString('ar-SA')+'</div></div>'
+      + '<div class="rmini"><div class="rl">فواتير</div><div class="rv">'+(r.files_count||0)+' 📎</div></div>'
       + '</div></div>';
   }).join('');
 }
@@ -957,7 +1001,7 @@ window.addEventListener('load', function() {
   addCat('شاورما','🌯'); addCat('برجر','🍔'); addCat('بطاطس وصوصات','🍟'); addCat('مشروبات','🥤');
   addExp('fx-l','fx','إيجار المحل'); addExp('fx-l','fx','رواتب الموظفين');
   addExp('vr-l','vr','خامات ومواد'); addExp('vr-l','vr','صيانة');
-  renderRecs();
+  loadRecs();
 });
 </script>
 </body>
