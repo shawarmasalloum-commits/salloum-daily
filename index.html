@@ -629,9 +629,9 @@ function renderRecs(){
       +'<div class="rmini"><div class="rl">صافي الربح</div><div class="rv" style="color:'+(profit>=0?'var(--green)':'var(--red)')+'">'+Math.round(Math.abs(profit)).toLocaleString('ar-SA')+'</div></div>'
       +'</div>'
       +'<div class="rec-actions">'
-      +'<button class="rec-btn prt" onclick="printRec(\''+r.id+'\')">🖨️ طباعة</button>'
-      +'<button class="rec-btn xls" onclick="exportRec(\''+r.id+'\')">📊 Excel</button>'
-      +'<button class="rec-btn del" onclick="deleteRec(\''+r.id+'\')">🗑️ حذف</button>'
+      +'<button class="rec-btn prt" data-action="print" data-id="'+r.id+'">🖨️ طباعة</button>'
+      +'<button class="rec-btn xls" data-action="excel" data-id="'+r.id+'">📊 Excel</button>'
+      +'<button class="rec-btn del" data-action="delete" data-id="'+r.id+'">🗑️ حذف</button>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -645,6 +645,17 @@ function deleteRec(id){
     else{showToast('🗑️ تم الحذف');loadRecs();}
   });
 }
+
+// Record actions delegation
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  var action = btn.getAttribute('data-action');
+  var id = btn.getAttribute('data-id');
+  if(action === 'print') printRec(id);
+  else if(action === 'excel') exportRec(id);
+  else if(action === 'delete') deleteRec(id);
+});
 
 // ═══ EXPORT EXCEL ═══
 function exportRec(id){
@@ -697,31 +708,63 @@ function printPage(){
   document.querySelectorAll('.card.closed').forEach(function(c){c.classList.remove('closed');});
   window.print();
 }
+function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function printRec(id){
   var r=records.find(function(x){return x.id===id;});
   if(!r) return;
+  var net = r.net_profit||0;
+  var netColor = net >= 0 ? '#1B5E20' : '#B71C1C';
+  var netBg = net >= 0 ? '#E8F5E9' : '#FFEBEE';
   var w=window.open('','_blank');
-  w.document.write('<html dir="rtl"><head><meta charset="UTF-8">'
+  w.document.write(
+    '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">'
     +'<title>كشف '+( r.date_label||r.report_date)+'</title>'
-    +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">'
-    +'<style>body{font-family:Cairo,sans-serif;padding:24px;direction:rtl;max-width:500px;margin:0 auto}'
-    +'h1{font-size:20px;text-align:center;margin-bottom:4px}p{text-align:center;color:#666;font-size:12px;margin-bottom:20px}'
-    +'.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px}'
-    +'.total{font-weight:900;font-size:16px;margin-top:12px;display:flex;justify-content:space-between;background:#111;color:#fff;padding:12px 16px;border-radius:10px}'
+    +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Cairo,sans-serif;background:#f5f5f5;padding:20px;direction:rtl;color:#111}'
+    +'.page{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.1)}'
+    +'.head{background:#111;color:#fff;padding:20px 24px;text-align:center}'
+    +'.head h1{font-size:22px;font-weight:900;margin-bottom:4px}'
+    +'.head p{font-size:12px;opacity:.7}'
+    +'.head .date{font-size:14px;font-weight:700;margin-top:8px;background:rgba(255,255,255,.15);padding:6px 16px;border-radius:20px;display:inline-block}'
+    +'.section{padding:16px 20px}'
+    +'.sec-title{font-size:10px;font-weight:800;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee}'
+    +'.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px}'
+    +'.row:last-child{border:none}'
+    +'.row .lbl{color:#555}'
+    +'.row .val{font-weight:700;color:#111}'
+    +'.row.total .lbl{font-weight:800;color:#111;font-size:14px}'
+    +'.row.total .val{font-weight:900;font-size:15px;color:#111}'
+    +'.divider{height:8px;background:#f5f5f5}'
+    +'.net{margin:16px 20px;background:'+netBg+';border:2px solid '+netColor+';border-radius:12px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}'
+    +'.net .nl{font-size:15px;font-weight:800;color:'+netColor+'}'
+    +'.net .nv{font-size:24px;font-weight:900;color:'+netColor+'}'
+    +'.footer{text-align:center;padding:14px;font-size:10px;color:#bbb;border-top:1px solid #eee}'
+    +'@media print{body{background:#fff;padding:0}.page{box-shadow:none;border-radius:0}}'
     +'</style></head><body>'
-    +'<h1>شاورما سلوم</h1><p>'+(r.date_label||r.report_date)+'</p>'
-    +'<div class="row"><span>💵 كاش</span><span>'+(r.cash_sales||0)+' ﷼</span></div>'
-    +'<div class="row"><span>💳 شبكة</span><span>'+(r.card_sales||0)+' ﷼</span></div>'
-    +'<div class="row"><span>📱 توصيل التطبيقات</span><span>'+(r.app_sales||0)+' ﷼</span></div>'
-    +'<div class="row"><span><b>💰 إجمالي المبيعات</b></span><span><b>'+(r.total_sales||0)+' ﷼</b></span></div>'
-    +'<div style="height:12px"></div>'
-    +'<div class="row"><span>📌 مصاريف ثابتة</span><span>'+(r.fixed_exp||0)+' ﷼</span></div>'
-    +'<div class="row"><span>💸 مصاريف متغيرة</span><span>'+(r.variable_exp||0)+' ﷼</span></div>'
-    +'<div class="row"><span>👤 سلف موظفين</span><span>'+(r.advances||0)+' ﷼</span></div>'
-    +'<div class="row"><span><b>🔻 إجمالي المصاريف</b></span><span><b>'+(r.total_exp||0)+' ﷼</b></span></div>'
-    +'<div class="total"><span>💎 صافي الربح</span><span>'+(r.net_profit||0)+' ﷼</span></div>'
-    +'</body></html>');
-  w.document.close(); w.print();
+    +'<div class="page">'
+    +'<div class="head"><h1>شاورما سلوم</h1><p>كشف الحسابات اليومي</p><div class="date">'+(r.date_label||r.report_date)+'</div></div>'
+    +'<div class="section"><div class="sec-title">المبيعات</div>'
+    +'<div class="row"><span class="lbl">💵 كاش</span><span class="val">'+fmt2(r.cash_sales)+' ﷼</span></div>'
+    +'<div class="row"><span class="lbl">💳 شبكة / مدى</span><span class="val">'+fmt2(r.card_sales)+' ﷼</span></div>'
+    +'<div class="row"><span class="lbl">📱 توصيل التطبيقات</span><span class="val">'+fmt2(r.app_sales)+' ﷼</span></div>'
+    +'<div class="row total"><span class="lbl">إجمالي المبيعات</span><span class="val">'+fmt2(r.total_sales)+' ﷼</span></div>'
+    +'</div>'
+    +'<div class="divider"></div>'
+    +'<div class="section"><div class="sec-title">المصاريف</div>'
+    +'<div class="row"><span class="lbl">📌 مصاريف ثابتة</span><span class="val">'+fmt2(r.fixed_exp)+' ﷼</span></div>'
+    +'<div class="row"><span class="lbl">💸 مصاريف متغيرة</span><span class="val">'+fmt2(r.variable_exp)+' ﷼</span></div>'
+    +'<div class="row"><span class="lbl">👤 سلف موظفين</span><span class="val">'+fmt2(r.advances)+' ﷼</span></div>'
+    +'<div class="row total"><span class="lbl">إجمالي المصاريف</span><span class="val">'+fmt2(r.total_exp)+' ﷼</span></div>'
+    +'</div>'
+    +'<div class="net"><span class="nl">💎 صافي الربح</span><span class="nv">'+fmt2(net)+' ﷼</span></div>'
+    +'<div class="footer">شاورما سلوم — كشف الحسابات اليومي</div>'
+    +'</div>'
+    +'</body></html>'
+  );
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 800);
 }
 
 // ═══ TOAST ═══
