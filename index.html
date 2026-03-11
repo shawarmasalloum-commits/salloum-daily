@@ -376,7 +376,6 @@ textarea.inp{resize:vertical;min-height:75px;line-height:1.7}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 var SUPA_URL = 'https://mkkudnouqxigxozjwick.supabase.co';
 var SUPA_KEY = 'sb_publishable_1uvzYe1jdGb4dchmDoQGvQ_KxXmmhmD';
@@ -595,10 +594,17 @@ function saveRec(){
     fixed_exp:fx, variable_exp:vr, advances:adv, total_exp:exp, net_profit:sales-exp,
     files_count:uploads.filter(function(f){return f;}).length
   };
+  // add save time
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  rec.saved_at = hh + ':' + mm;
+  rec.date_label = document.getElementById('date-txt').textContent + ' — ' + hh + ':' + mm;
+
   showToast('⏳ جاري الحفظ...');
   db.from('daily_reports').insert([rec]).then(function(res){
     if(res.error){showToast('❌ '+res.error.message);}
-    else{showToast('✅ تم الحفظ بنجاح');}
+    else{showToast('✅ تم الحفظ — ' + hh + ':' + mm); loadRecs();}
   });
 }
 
@@ -640,7 +646,7 @@ function renderRecs(){
 // ═══ DELETE ═══
 function deleteRec(id){
   if(!confirm('حذف هذا الكشف نهائياً؟')) return;
-  db.from('daily_reports').delete().eq('id',id).then(function(res){
+  db.from('daily_reports').delete().eq('id',String(id)).then(function(res){
     if(res.error){showToast('❌ '+res.error.message);}
     else{showToast('🗑️ تم الحذف');loadRecs();}
   });
@@ -659,8 +665,8 @@ document.addEventListener('click', function(e){
 
 // ═══ EXPORT EXCEL ═══
 function exportRec(id){
-  var r=records.find(function(x){return x.id===id;});
-  if(!r) return;
+  var r=records.find(function(x){return String(x.id)===String(id);});
+  if(!r){showToast('❌ لم يُعثر على الكشف');return;}
   var data=[
     ['البيان','المبلغ (ريال)'],
     ['التاريخ', r.date_label||r.report_date],
@@ -710,8 +716,8 @@ function printPage(){
 }
 function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function printRec(id){
-  var r=records.find(function(x){return x.id===id;});
-  if(!r) return;
+  var r=records.find(function(x){return String(x.id)===String(id);});
+  if(!r){showToast('❌ لم يُعثر على الكشف');return;}
   var net=r.net_profit||0;
   var isPos=net>=0;
   var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">'
@@ -762,8 +768,8 @@ function printRec(id){
 }
 
 function exportRec(id){
-  var r=records.find(function(x){return x.id===id;});
-  if(!r) return;
+  var r=records.find(function(x){return String(x.id)===String(id);});
+  if(!r){showToast('❌ لم يُعثر على الكشف');return;}
   var data=[
     ['البيان','المبلغ (ريال)'],
     ['التاريخ', r.date_label||r.report_date],
@@ -813,8 +819,8 @@ function printPage(){
 }
 function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function printRec(id){
-  var r=records.find(function(x){return x.id===id;});
-  if(!r) return;
+  var r=records.find(function(x){return String(x.id)===String(id);});
+  if(!r){showToast('❌ لم يُعثر على الكشف');return;}
   var net = r.net_profit||0;
   var netColor = net >= 0 ? '#1B5E20' : '#B71C1C';
   var netBg = net >= 0 ? '#E8F5E9' : '#FFEBEE';
