@@ -712,6 +712,109 @@ function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFract
 function printRec(id){
   var r=records.find(function(x){return x.id===id;});
   if(!r) return;
+  var net=r.net_profit||0;
+  var isPos=net>=0;
+  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">'
+  +'<title>كشف يومي</title>'
+  +'<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">'
+  +'<style>'
+  +'@page{size:A4;margin:15mm}'
+  +'*{box-sizing:border-box;margin:0;padding:0}'
+  +'body{font-family:Cairo,sans-serif;direction:rtl;color:#111;font-size:13px;background:#fff}'
+  +'.page{max-width:180mm;margin:0 auto}'
+  +'.header{text-align:center;border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:16px}'
+  +'.header h1{font-size:22px;font-weight:900}'
+  +'.header .sub{font-size:11px;color:#666;margin-top:3px}'
+  +'.header .date{font-size:13px;font-weight:700;margin-top:6px}'
+  +'.sec{margin-bottom:14px}'
+  +'.sec-title{font-size:10px;font-weight:900;color:#fff;background:#333;padding:4px 10px;border-radius:4px;margin-bottom:6px;letter-spacing:1px}'
+  +'.row{display:flex;justify-content:space-between;padding:5px 10px;border-bottom:1px solid #f0f0f0;font-size:12px}'
+  +'.row:nth-child(even){background:#fafafa}'
+  +'.row.bold{font-weight:800;background:#f5f5f5;border-top:1px solid #ddd}'
+  +'.net-box{margin-top:16px;border:2px solid '+(isPos?'#2E7D32':'#C62828')+';border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:'+(isPos?'#F1FBF2':'#FFF5F5')+'}'
+  +'.net-label{font-size:15px;font-weight:900;color:'+(isPos?'#2E7D32':'#C62828')+'}'
+  +'.net-value{font-size:22px;font-weight:900;color:'+(isPos?'#2E7D32':'#C62828')+'}'
+  +'.footer{margin-top:20px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px}'
+  +'@media print{.no-print{display:none}}'
+  +'</style></head><body>'
+  +'<div class="page">'
+  +'<div class="header"><h1>شاورما سلوم</h1><div class="sub">كشف الحسابات اليومي</div><div class="date">'+(r.date_label||r.report_date)+'</div></div>'
+  +'<div class="sec"><div class="sec-title">المبيعات</div>'
+  +'<div class="row"><span>كاش</span><span>'+fmt2(r.cash_sales)+' ﷼</span></div>'
+  +'<div class="row"><span>شبكة / مدى</span><span>'+fmt2(r.card_sales)+' ﷼</span></div>'
+  +'<div class="row"><span>توصيل التطبيقات</span><span>'+fmt2(r.app_sales)+' ﷼</span></div>'
+  +'<div class="row bold"><span>إجمالي المبيعات</span><span>'+fmt2(r.total_sales)+' ﷼</span></div>'
+  +'</div>'
+  +'<div class="sec"><div class="sec-title">المصاريف</div>'
+  +'<div class="row"><span>مصاريف ثابتة</span><span>'+fmt2(r.fixed_exp)+' ﷼</span></div>'
+  +'<div class="row"><span>مصاريف متغيرة</span><span>'+fmt2(r.variable_exp)+' ﷼</span></div>'
+  +'<div class="row"><span>سلف موظفين</span><span>'+fmt2(r.advances)+' ﷼</span></div>'
+  +'<div class="row bold"><span>إجمالي المصاريف</span><span>'+fmt2(r.total_exp)+' ﷼</span></div>'
+  +'</div>'
+  +'<div class="net-box"><span class="net-label">صافي الربح</span><span class="net-value">'+fmt2(net)+' ﷼</span></div>'
+  +'<div class="footer">شاورما سلوم — كشف الحسابات اليومي — '+( r.date_label||r.report_date)+'</div>'
+  +'</div></body></html>';
+  var w=window.open('','_blank','width=800,height=900');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.onload=function(){ w.focus(); w.print(); };
+}
+
+function exportRec(id){
+  var r=records.find(function(x){return x.id===id;});
+  if(!r) return;
+  var data=[
+    ['البيان','المبلغ (ريال)'],
+    ['التاريخ', r.date_label||r.report_date],
+    ['',''],
+    ['المبيعات',''],
+    ['كاش', r.cash_sales||0],
+    ['شبكة/مدى', r.card_sales||0],
+    ['توصيل التطبيقات', r.app_sales||0],
+    ['إجمالي المبيعات', r.total_sales||0],
+    ['',''],
+    ['المصاريف',''],
+    ['مصاريف ثابتة', r.fixed_exp||0],
+    ['مصاريف متغيرة', r.variable_exp||0],
+    ['سلف الموظفين', r.advances||0],
+    ['إجمالي المصاريف', r.total_exp||0],
+    ['',''],
+    ['صافي الربح', r.net_profit||0],
+  ];
+  var ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:25},{wch:15}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'كشف يومي');
+  XLSX.writeFile(wb,'salloum-'+( r.report_date)+'.xlsx');
+  showToast('✅ تم تصدير Excel');
+}
+
+// ═══ EXPORT ALL EXCEL ═══
+function exportAll(){
+  if(!records.length){showToast('لا توجد سجلات للتصدير');return;}
+  var data=[['التاريخ','المبيعات','مبيعات المحل','مبيعات التطبيقات','المصاريف الثابتة','المصاريف المتغيرة','السلف','إجمالي المصاريف','صافي الربح']];
+  records.forEach(function(r){
+    data.push([r.date_label||r.report_date,r.total_sales||0,r.cash_sales+r.card_sales||0,r.app_sales||0,r.fixed_exp||0,r.variable_exp||0,r.advances||0,r.total_exp||0,r.net_profit||0]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:22},{wch:12},{wch:14},{wch:16},{wch:14},{wch:14},{wch:10},{wch:14},{wch:12}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'جميع الكشوفات');
+  XLSX.writeFile(wb,'salloum-all-reports.xlsx');
+  showToast('✅ تم تصدير جميع السجلات');
+}
+
+// ═══ PRINT ═══
+function printPage(){
+  updSum();
+  document.querySelectorAll('.card.closed').forEach(function(c){c.classList.remove('closed');});
+  window.print();
+}
+function fmt2(n){ return (parseFloat(n)||0).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function printRec(id){
+  var r=records.find(function(x){return x.id===id;});
+  if(!r) return;
   var net = r.net_profit||0;
   var netColor = net >= 0 ? '#1B5E20' : '#B71C1C';
   var netBg = net >= 0 ? '#E8F5E9' : '#FFEBEE';
